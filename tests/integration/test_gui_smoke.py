@@ -264,3 +264,118 @@ class TestTrayAndHotkeys:
 
         with pytest.raises(HotkeyError):
             parse_hotkey(spec)
+
+
+    def test_overlay_is_visible_so_guides_can_appear(self, app_and_controller):
+        """覆盖层必须常驻可见：箭头与目标框画在它上面。
+
+        隐藏窗口无法显示任何指导内容，这是容易被忽略的真实缺陷。
+        """
+        _, _, _, windows, _ = app_and_controller
+        assert windows.overlay.isVisible(), "覆盖层未显示，指导内容不可能可见"
+
+
+class TestOverlayActuallyRenders:
+    """像素级验证：确认标注真的画出来了，而不只是数据写进去了。
+
+    这里防的是一类真实回归——QML 里 Item 未给尺寸会让 Canvas 被撑成 0x0，
+    数据正确但屏幕上什么都看不到，纯数据断言无法发现。
+
+    注意：Canvas 需要一帧才会重绘，所以断言前必须 pump 事件循环，
+    否则 grabWindow 抓到的是重绘前的画面。
+    """
+
+    @staticmethod
+    def _pump(milliseconds: int = 60) -> None:
+        from PySide6.QtCore import QEventLoop, QTimer
+
+        loop = QEventLoop()
+        QTimer.singleShot(milliseconds, loop.quit)
+        loop.exec()
+
+    @classmethod
+    def _wait_for_pixels(cls, window, predicate, timeout_ms: int = 2000) -> int:
+        """轮询等待画面出现目标像素。
+
+        Canvas 首帧重绘有约 200ms 延迟，用固定 sleep 会产生随机失败；
+        这里改为有上限的轮询：若始终不出现，仍然会失败。
+        """
+        waited = 0
+        hits = 0
+        while waited < timeout_ms:
+            cls._pump(100)
+            waited += 100
+            hits = cls._count_pixels(window.grabWindow(), predicate)
+            if hits > 0:
+                break
+        return hits
+
+    @staticmethod
+    def _count_pixels(image, predicate) -> int:
+        hits = 0
+        for y in range(0, image.height(), 2):
+            for x in range(0, image.width(), 2):
+                color = image.pixelColor(x, y)
+                if color.alpha() > 40 and predicate(color):
+                    hits += 1
+        return hits
+
+    @staticmethod
+    def _is_user_mark(color) -> bool:
+        return color.red() > 180 and 120 < color.green() < 200 and color.blue() < 150
+
+    @staticmethod
+    def _is_moonlight(color) -> bool:
+        return (
+            100 < color.red() < 170
+            and 140 < color.green() < 190
+            and 180 < color.blue() < 230
+        )
+
+    def test_user_arrow_renders_pixels(self, app_and_controller):
+        _, controller, _, windows, _ = app_and_controller
+        controller.clear_annotations()
+        self._pump()
+        controller._on_arrow_drawn(0.10, 0.50, 0.40, 0.50)
+
+        hits = self._wait_for_pixels(windows.overlay, self._is_user_mark)
+        assert hits > 50, f"用户箭头未渲染到屏幕（暖橙像素 {hits}）"
+
+    def test_target_box_renders_pixels(self, app_and_controller):
+        from app.core.protocol import GuideInstruction
+
+        _, controller, _, windows, _ = app_and_controller
+        controller._apply_visual_guide(
+            GuideInstruction(
+                step_id="render-check",
+                text="点击这里",
+                target={"bounds": (0.30, 0.30, 0.20, 0.10), "confidence": 0.92},
+                visual_guide={"action": "click", "mouse_animation": "single_click"},
+            )
+        )
+
+        hits = self._wait_for_pixels(windows.overlay, self._is_moonlight)
+        assert hits > 50, f"目标框/虚拟鼠标未渲染（月光蓝像素 {hits}）"
+
+    def test_cleared_arrow_disappears_from_screen(self, app_and_controller):
+        _, controller, _, windows, _ = app_and_controller
+        controller.clear_annotations()
+        self._pump()
+        controller._on_arrow_drawn(0.10, 0.50, 0.40, 0.50)
+        assert self._wait_for_pixels(windows.overlay, self._is_user_mark) > 50
+
+        controller.clear_annotations()
+        # 清空后必须归零：这里允许重绘延迟，但不允许残留
+        after = self._wait_for_absence(windows.overlay, self._is_user_mark)
+        assert after == 0, f"清空后画面上仍有箭头（{after} 像素）"
+
+    @classmethod
+    def _wait_for_absence(cls, window, predicate, timeout_ms: int = 2000) -> int:
+        """等待目标像素消失，返回最终计数。"""
+        waited = 0
+        hits = cls._count_pixels(window.grabWindow(), predicate)
+        while waited < timeout_ms and hits > 0:
+            cls._pump(100)
+            waited += 100
+            hits = cls._count_pixels(window.grabWindow(), predicate)
+        return hits

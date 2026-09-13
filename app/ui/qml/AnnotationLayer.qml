@@ -109,10 +109,15 @@ Window {
         delegate: Item {
             required property var modelData
             visible: modelData.visible !== false
+            // 必须显式给出尺寸：Repeater 的 delegate Item 默认是 0x0，
+            // 否则 Canvas 的 anchors.fill 会被撑成 0x0 而画不出任何内容。
+            width: overlay.width
+            height: overlay.height
 
             Canvas {
                 id: arrowCanvas
-                anchors.fill: parent
+                // 不使用 anchors.fill：父 Item 的尺寸依赖本画布绘制，
+                // 显式绑定窗口尺寸更直接，也避免锚定循环。
                 x: 0
                 y: 0
                 width: overlay.width

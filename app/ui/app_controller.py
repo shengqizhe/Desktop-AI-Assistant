@@ -82,13 +82,17 @@ class AppController(QObject):
         self._update_capture_labels()
 
     def _show_desktop_layers(self) -> None:
-        """显示常驻层：灵动岛、输入坞。
+        """显示常驻层：覆盖层、灵动岛、输入坞。
+
+        覆盖层必须显示——它承载箭头、目标框与虚拟鼠标，靠 Win32
+        WS_EX_TRANSPARENT 保持点击穿透，而不是靠隐藏窗口。
 
         字幕轨只在有消息时出现（方案 4.4.2），历史窗口只在用户点击时出现。
         """
+        overlay = self._windows.windows.overlay
         island = self._windows.windows.island
         dock = self._windows.windows.dock
-        for window in (island, dock):
+        for window in (overlay, island, dock):
             if window is not None and not window.isVisible():
                 window.show()
         self._windows.layout()
