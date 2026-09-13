@@ -26,6 +26,11 @@ catlike/
 *.sqlite
 *.sqlite3
 
+# 屏幕帧临时缓存（方案 5.2：正常退出清理，且不入库）
+cache/
+*.jpeg
+*.webp
+
 # ---------- 日志 ----------
 *.log
 @AutomationLog.txt
@@ -39,3 +44,8 @@ model/
 *.key
 *.pem
 secrets.json
+
+# ---------- 测试与类型检查缓存 ----------
+.coverage
+htmlcov/
+.ruff_cache/

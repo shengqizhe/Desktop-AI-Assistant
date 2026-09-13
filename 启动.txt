@@ -1,2 +1,5 @@
 .\.venv\Scripts\Activate.ps1
- python desktop_pet_fluent.py
+python -m app.main
+
+# 或直接使用虚拟环境中的 Python（不激活环境）
+# .\.venv\Scripts\python.exe -m app.main
