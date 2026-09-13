@@ -16,8 +16,9 @@ ERP 或 Windows 设置等应用时直接提问，客户端基于最近的屏幕�
 - 默认不上传任何屏幕内容，上传前需用户显式开启并经过脱敏检查；
 - 模型只能返回视觉指导协议，拿不到任何可调用的本机函数。
 
-`tests/unit/test_safety_guards.py` 会静态扫描 `app/` 目录，一旦有人把
-执行型调用接回主线就会失败。
+当前**没有自动化测试**，上述边界由代码结构保证（见 `app/agent/validator.py`
+的字段白名单与坐标校验、`app/core/protocol.py` 的 pydantic 严格校验、
+`app/privacy/upload_guard.py` 的默认拒绝）。修改这些模块时需人工复核。
 
 ## 当前实现状态
 
@@ -37,7 +38,6 @@ ERP 或 Windows 设置等应用时直接提问，客户端基于最近的屏幕�
 | 平台层 | Win32 点击穿透、多显示器 + DPI、`RegisterHotKey` 全局快捷键、系统托盘 |
 | 隐私 | 进程黑名单、敏感标题识别、上传守卫（默认拒绝） |
 | 采集 | 协议定义 + 固定槽位环形缓存（**未接入真实采集**） |
-| 测试 | 158 个用例（含 GUI 集成测试与安全守卫） |
 
 尚未实现（属方案 I2、I4–I7）：
 
@@ -89,15 +89,9 @@ python -m venv .venv
 | 暂停/恢复采集 | `Ctrl+Alt+P`，或托盘右键菜单 |
 | 历史窗口 | 点击灵动岛 `☰`；失焦不会自动关闭 |
 
-## 测试
+## 自检
 
 ```powershell
-# 全部用例（含 GUI 集成测试）
-.\.venv\Scripts\python.exe -m pytest tests
-
-# 只跑不依赖窗口的单元测试
-.\.venv\Scripts\python.exe -m pytest tests/unit
-
 # Python 编译检查
 .\.venv\Scripts\python.exe -m compileall -q app start.py build.py
 ```
@@ -124,9 +118,6 @@ app/
   capture/                Worker 协议 + 固定槽位环形缓存
   privacy/                黑名单、敏感窗口、上传守卫
   platform/windows/       穿透、多显示器、快捷键、托盘
-tests/
-  unit/                   协议、状态机、agent、配置、安全守卫
-  integration/            GUI 冒烟与交互集成
 ```
 
 ## 与 V4.1 的关系
@@ -145,4 +136,5 @@ tests/
 LangChain 包装、以及「模型 → Python 函数 → `launch_app`/`taskkill`」执行链路。
 
 `app_launcher.py` 与 `knowledge/` 仍保留在工作区，作为旧执行能力的隔离参考，
-**不被 `app/` 下任何模块引用**，并由安全守卫测试持续检查。
+**不被 `app/` 下任何模块引用**。当前没有自动化检查来强制这一点，新增代码时
+请勿把这两者接入 `app/` 主线。
