@@ -1,0 +1,12 @@
+PyQt5
+PyQt-Fluent-Widgets
+numpy
+openai
+pyttsx3
+psutil
+pyaudio
+vosk
+langchain
+langchain-openai
+wxautox
+pywin32

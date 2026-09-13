@@ -1,0 +1,48 @@
+应用启动知识库
+
+一、检索与启动顺序
+1) 自学习映射（优先） -> 如果存在用户绑定的 exe 路径，直接启动
+2) 开始菜单快捷方式（.lnk） -> 在系统与用户开始菜单中按别名模糊匹配
+3) 常见安装目录扫描（.exe） -> 在常见目录下递归查找包含别名的可执行文件
+4) PATH 搜索 -> 使用 which 查找可执行文件
+
+二、开始菜单路径
+- C:\ProgramData\Microsoft\Windows\Start Menu\Programs
+- %APPDATA%\Microsoft\Windows\Start Menu\Programs
+
+三、常见安装目录
+- %ProgramFiles%
+- %ProgramFiles(x86)%
+- %LOCALAPPDATA%\Programs
+
+四、自学习映射（持久化）
+- 存储位置：%APPDATA%\XiaoZhuo\app_mappings.json
+- 含义：app 名（小写） -> exe 完整路径
+- 生效优先级：最高
+
+五、应用别名表（用于匹配）
+- 抖音: 抖音, TikTok
+- 微信: 微信, WeChat
+- 钉钉: 钉钉, DingTalk
+- QQ: QQ
+- 企业微信: 企业微信, WeCom
+- 飞书: 飞书, Feishu, Lark
+- 浏览器: Chrome, Google Chrome, Microsoft Edge, Edge, Firefox, 火狐浏览器
+
+六、对外接口（内部实现摘要）
+- launch_app(app): 启动应用；返回 (success, path)
+  检索顺序：自学习映射 -> 开始菜单 -> 常见目录 -> PATH
+- register_app(app, exe_path): 绑定应用与 exe 路径；返回 bool
+- get_mapped_path(app): 获取已绑定的 exe 路径；不存在则返回 None
+
+七、LLM 意图与 JSON 协议
+- 启动应用：
+  {"type":"launch_app","app":"抖音"}
+- 绑定应用路径（自学习）：
+  {"type":"register_app","app":"抖音","path":"D:\\Apps\\Douyin\\douyin.exe"}
+
+八、注意事项
+- 路径必须指向真实的 .exe 文件
+- 如果启动失败，引导用户提供 exe 路径进行绑定
+- 建议维护安全白名单，避免启动系统关键程序或携带危险参数
+
